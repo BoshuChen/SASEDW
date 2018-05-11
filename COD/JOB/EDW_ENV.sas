@@ -33,8 +33,9 @@ LIBNAME LIBABT "&RootPath.&RootPathDlm.LIB&RootPathDlm.ABT" ;
 LIBNAME LIBDDS "&RootPath.&RootPathDlm.LIB&RootPathDlm.DDS" ; 
 LIBNAME LIBPBT "&RootPath.&RootPathDlm.LIB&RootPathDlm.PBT" ; 
 LIBNAME LIBSTG "&RootPath.&RootPathDlm.LIB&RootPathDlm.STG" ; 
+
 /*
-3. injection.xml(user defined settings) 匯入為EDWmeta Library
+3. 匯入專案設定檔
 */
 LIBNAME EDWmeta XML "&RootPath.&RootPathDlm.injection.xml" ; 
 DATA GLOBAL ; 
@@ -49,16 +50,17 @@ DATA GLOBAL ;
 	END ;
 RUN ;
 /*
-4. 清空報表區對應資料夾與新建報表區對應資料夾
+4. oracle db libname construct 
 */
-DATA RPT_GENERATOR;
-	SET EDWmeta.RPT_GENERATOR;
-	IF _N_ = 1 THEN envDlm =  symget( 'RootPathDlm') ;
-	/* command which rm dir including subfolder  depends on system : window or unix like */
-	IF envDlm = "\" THEN CALL SYSTEM( "rmdir /S /Q &RootPath.&RootPathDlm.RPT&RootPathDlm." || KSTRIP(DIR_NAME) ) ;
-	ELSE CALL SYSTEM( "rm -rf &RootPath.&RootPathDlm.RPT&RootPathDlm." || KSTRIP(DIR_NAME) ) ;
-	rc = DCREATE( KSTRIP(DIR_NAME) , "&RootPath.&RootPathDlm.RPT&RootPathDlm." );
-RUN;
+DATA ORACLE ; 
+	SET EDWmeta.ENV_ORACLE ; 
+	CALL EXECUTE( ' LIBNAME ' || KSTRIP(lib_name) ||
+                                       ' oracle path = ' || KSTRIP(path) || 
+                                       ' schema = ' || KSTRIP(layout) || 
+                                       ' user = ' || KSTRIP(user) || 
+				       ' password = "' || KSTRIP(password) || '" ; ' ) ;
+RUN ;
+
 /*
 5. 編譯專案Macro
 */
@@ -66,25 +68,6 @@ RUN;
 %UTL_findExec( "&RootPath.&RootPathDlm.COD&RootPathDlm.MCR" , ext=sas , cmd_prefix=' %include "' ,cmd_suffix = '";'  )
 
 /*
-*　　　　　　　　┌┐　　　┌┐+ +
-*　　　　　　　┌┘┴───┘┴┐ + +
-*　　　　　　　│　　　　　　　│ 　
-*　　　　　　　│　　　─　　　│ ++ + + +
-*　　　　　　 ████─████ │+                      草泥馬保佑!!!!!!!
-*　　　　　　　│　　　　　　　│ +
-*　　　　　　　│　　　┴　　　│
-*　　　　　　　│　　　　　　　│ + +
-*　　　　　　　└─┐　　　┌─┘
-*　　　　　　　　　│　　　│　　　　　　　　　　　
-*　　　　　　　　　│　　　│ + + + +
-*　　　　　　　　　│　　　│　　　　　　　　　　　
-*　　　　　　　　　│　　　│ + 　　　　
-*　　　　　　　　　│　　　│
-*　　　　　　　　　│　　　│　　+　　　　　　　　　
-*　　　　　　　　　│　 　　└───┐ + +
-*　　　　　　　　　│ 　　　　　　　├┐
-*　　　　　　　　　│ 　　　　　　　┌┘
-*　　　　　　　　　└┐┐┌─┬┐┌┘ + + + +
-*　　　　　　　　　　│┤┤　│┤┤
-*　　　　　　　　　　└┴┘　└┴┘+ + + +
+6. 建立 Oracle DB LIBRARY
 */
+

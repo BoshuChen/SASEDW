@@ -12,8 +12,8 @@
         %LET SORT_KEYS = %SYSFUNC( KCOMPRESS( &SORT_KEYS.  , () ) ) ;
  
         %LOCAL /* GROUP_KEY_noParentheses*/ SORT_KEYS_BY_SPACE  GROUP_KEYS_BY_SPACE ;
-        %LET SORT_KEYS_BY_SPACE= %sysfunc(tranwrd(&GROUP_KEYS. , %str(,) , %str( ) ));
-        %LET GROUP_KEYS_BY_SPACE = %sysfunc(tranwrd(&GROUP_KEYS. , %str(,) , %str( ) )) ;
+        %LET SORT_KEYS_BY_SPACE= %sysfunc(tranwrd(%SUPERQ(SORT_KEYS) , %str(,) , %str( ) ));
+        %LET GROUP_KEYS_BY_SPACE = %sysfunc(tranwrd(%SUPERQ(GROUP_KEYS) , %str(,) , %str( ) )) ;
 
     /*    %LET GROUP_KEY_noParentheses =  %SUBSTR( &GROUP_KEYS. ,2 ,%EVAL( %LENGTH( &GROUP_KEYS. ) -2 ) )  ; */
         %LOCAL UUID ; 

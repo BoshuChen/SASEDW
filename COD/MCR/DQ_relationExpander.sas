@@ -22,6 +22,7 @@
 						NODE , 
 						LEAF ,
 						NODE_VAL ,
+						CLEAN_FLG=1 ,
 						OUT=TREE /*output dataset with link level */ ,
 						MAX=20  /* maximum iteration */ );
         %LET TBL =  %SYSFUNC( dequote( &TBL. ) ) ;
@@ -33,9 +34,9 @@
 		%PUT ERROR:INPUT NODE_VAL INVALID ;
 		%ABORT CANCEL ;
 	%END;
-        %LOCAL level nlevel ii UUID;
+        %LOCAL level  ii UUID;
 	%LET UUID = &SYSJOBID._&SYSINDEX.  ;  /* session_id + execute macro count */
-        %LET   level = 1;
+        %LET   level = 0;
 
         PROC SQL;
 		/*留下有效族譜包含父節點與父節點的資料*/
@@ -56,6 +57,7 @@
                                 %IF "&NODE_VAL." NE "" %THEN &NODE. = "&NODE_VAL."  ; 
                         ;  
 	QUIT ; %IF &SYSERR. > 6 %THEN %ABORT CANCEL ; 
+	%IF &SQLOBS > 0 %THEN %LET level = %SYSEVALF( &level. + 1 ) ; 
 	/* append root node */
 	DATA L&UUID._0 ;
 		IF 0 THEN SET L&UUID._1 ;
@@ -74,26 +76,32 @@
 		RUN ;
 		PROC SQL ; 
 		/* 迴圈停止條件是查無資料或是次數達上限MAX */
-	                %LET nlevel = %EVAL(&level + 1);
-	                CREATE TABLE L&UUID._&nlevel. AS
-	                        SELECT A.* , &nlevel. as level
+	                CREATE TABLE L&UUID._%SYSEVALF( &level.+ 1) AS
+	                        SELECT A.* , %SYSEVALF( &level.+ 1) as level
 	                        FROM S&UUID.  A INNER JOIN ( SELECT DISTINCT &LEAF. FROM L&UUID._&level. ) B
 	                                ON ( A.&NODE. = B.&LEAF. ) 
 				WHERE A.&LEAF. NOT IN (SELECT &NODE. FROM S0&UUID. );
-	                %LET level = &nlevel;
-	                %if  &nlevel. GT &MAX. %THEN %do ;
-	                        %put ERROR: LOOP TOO MUCH ,CHK DEPENDENCY ; 
-	                        %goto LEAVE_LOOP ;
-	                %end ;
-		QUIT ; %IF &SYSERR. > 6 %THEN %ABORT CANCEL ; 
+		QUIT ; %IF &SYSERR. > 6 %THEN %ABORT CANCEL ;
+		%IF &SQLOBS > 0 %THEN %LET level = %SYSEVALF( &level. + 1 ) ; 
+		%PUT SQLOBS = &SQLOBS;
+                %if  &level. GT &MAX. %THEN %do ;
+                        %put ERROR: LOOP TOO MUCH ,CHK DEPENDENCY ; 
+                        %goto LEAVE_LOOP ;
+                %end ;
         %END; 
 %LEAVE_LOOP:
 
 	/* 併檔*/
-	DATA &OUT. ; 
-		SET L&UUID._: ;
-	RUN ; %IF &SYSERR. > 6 %THEN %ABORT CANCEL ; 
-	
+	%IF &level. GE 1 %THEN %DO ;
+		DATA &OUT. ; 
+			SET L&UUID._: ;
+		RUN ; %IF &SYSERR. > 6 %THEN %ABORT CANCEL ; 
+		proc sort data=&OUT.%IF &CLEAN_FLG. EQ 1 %THEN (keep= &NODE. &LEAF. level) ;  
+	                      sortseq=linguistic(Numeric_Collation=ON) ; 
+			by level &NODE. &LEAF.  ;
+		run ; 
+	%END;
+
 	/*清TEMP檔*/
 	PROC DATASETS LIB=WORK NOLIST NOWARN ;
 		DELETE L&UUID._: S&UUID.  S0&UUID. ;
@@ -103,15 +111,16 @@
 /* 範例說明*/
 	/*範例1: 
 		data relation ; 
-			father= "a1" ; son = "b1"  ; output ; 
-		 	father= "b1" ; son = "c1"  ; output ;
-			father= "c1" ; son = "d1"  ; output ;
-			father= "b1" ; son = "e1"  ; output ;
-			father= "e1" ; son = "f1"  ; output ;
-			father= "f1" ; son = "g1"  ; output ;
-			father= "f1" ; son = "h1"  ; output ;
-			father= "g1" ; son = "c1"  ; output ;
-			father= "h1" ; son = "d1"  ; output ;
+			father= "a1" ; son = "b1"  ; cc = 1 ;output ; 
+		 	father= "b1" ; son = "c1"  ; cc = 1 ;output ;
+			father= "c1" ; son = "d1"  ; cc = 1 ;output ;
+			father= "b1" ; son = "e1"  ; cc = 1 ;output ;
+			father= "e1" ; son = "f1"  ; cc = 1 ;output ;
+			father= "f1" ; son = "g1"  ; cc = 1 ;output ;
+			father= "f1" ; son = "h1"  ; cc = 1 ;output ;
+			father= "g1" ; son = "c1"  ; cc = 1 ;output ;
+			father= "h1" ; son = "d1"  ; cc = 1 ;output ;
+			father= "h1" ; son = "z1"  ; cc = 1 ;output ;
 		run ;
-		%DQ_relationExpander( relation , 	father , son , "b1" ) 	
+		%DQ_relationExpander( relation , 	father , son , "b1"   ) 	
 	*/
