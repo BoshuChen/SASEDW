@@ -23,9 +23,9 @@
 	%DO %WHILE ( %QKSCAN( %SUPERQ( tblArr ) , &tblCnt. + 1 , %STR(,) ) ^= );
                 %LET tblCnt = %EVAL( &tblCnt. + 1 ) ;
                 %LOCAL tbl_&UUID._&tblCnt. ;
-                %LET tbl_&UUID._&tblCnt. = %KSCAN( %QKSCAN( %SUPERQ( tblArr ) , &tblCnt. , %STR(,) ) , -1 , %STR(.) ) ;
+                %LET tbl_&UUID._&tblCnt. =  %KSCAN( %SUPERQ( tblArr ) , &tblCnt. , %STR(,) ) ;
 		proc sql ; 
-			create table m_tbl_&UUID._&tblCnt.( index=( idx_&&tbl_&UUID._&tblCnt.=( &groupBySpace.))) as 
+			create table m_tbl_&UUID._&tblCnt.( index=( idx_%KSCAN(&&tbl_&UUID._&tblCnt. , -1 ,%STR(.) ) =( &groupBySpace.))) as 
 				select &groupByComma. ,  
 					 putc( &sha.(catx( "|" , &StatisticArr. )) , "%SYSFUNC(dequote(&sha_format.))" ) as checkSum_&tblCnt. 
 				from &&tbl_&UUID._&tblCnt.
@@ -58,6 +58,6 @@
 		key1 = "b" ; key2 = "b1" ; amt1 = 1 ; amt2 = 2 ; output ; 
 		key1 = "b" ; key2 = "b1" ; amt1 = 1 ; amt2 = 3 ; output ; 
 	run ; 
-
-	%checkGroupByStatisticEquality( (master, detail) , ( key1 , key2 ) , ( SUM(amt1) , SUM(amt2) ) ) ; 
+        options mprint; 
+	%DQ_GroupByStatisticEquality( (master, detail) , ( key1 , key2 ) , ( SUM(amt1) , SUM(amt2) ) ) ; 
 */
